@@ -63,7 +63,11 @@ int main(int argc,char **argv){
             perror("accept"); 
             exit(EXIT_FAILURE); 
         }
-        read(new_socket, buffer, 1024);
+        int read_bytes = 0;
+        int bytes = 0;
+        while((bytes = read(new_socket+read_bytes, buffer, 1024))!= 0)
+            printf("%d\n",bytes);
+            read_bytes += bytes;
         printf("got buffer: %s\n",buffer);
         if(*buffer == '{'){
             printf("inserting...\n");
@@ -88,23 +92,29 @@ int main(int argc,char **argv){
         }
         else{
             uuid_t binuuid;
-            buffer[strlen(buffer)] = '\0';
-            printf("retrieving...[len %d]%s => %d\n",strlen(buffer),buffer,uuid_parse(buffer,binuuid));
+            buffer[strlen(buffer) - 1] = '\0';
+            printf("retrieving...[last %c][len %d]%s => %d\n",buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
 
             
 
             if(uuid_parse(buffer,binuuid) ==-1){
-                printf("bad uuid");
+                printf("bad uuid\n");
                 fflush(stdout);
                 continue;
             }
-            printf("good uuid");
+            printf("good uuid\n");
+            fflush(stdout);
             char *uuid = malloc(37);
             uuid_unparse_lower(binuuid,uuid);
             char *obj;
             hashmap_get(cache,uuid,(void**)&obj);
+            if(obj == NULL){
+                printf("no entry found\n");
+                fflush(stdout);
+                continue;
+            }
             send(new_socket , obj , strlen(obj) , 0 );
-            fflush(stdout);
+            
         }
     }
     json_tokener_free(tokener);
