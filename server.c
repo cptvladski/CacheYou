@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -18,7 +19,9 @@
 #include <stdarg.h>
 #include <json.h>
 #include <uuid/uuid.h>
+#include "c_hashmap/hashmap.h"
 #define PORT 1234
+
 
 int main(int argc,char **argv){
 	int server_fd;
@@ -32,7 +35,7 @@ int main(int argc,char **argv){
         exit(EXIT_FAILURE); 
     } 
        
-    // Forcefully attaching socket to the port 8080 
+    // Forcefully attaching socket to the port 1234
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) 
     { 
         perror("setsockopt"); 
@@ -51,21 +54,60 @@ int main(int argc,char **argv){
         perror("listen"); 
         exit(EXIT_FAILURE); 
     } 
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,(socklen_t*)&addrlen))<0) 
-    { 
-        perror("accept"); 
-        exit(EXIT_FAILURE); 
-    } 
-    char buffer[1024];
-    struct json_tokener *tokener = json_tokener_new();
-    read(new_socket, buffer, 1024);
-    uuid_t binuuid;
-    uuid_generate_random(binuuid);
-    char * uuid = malloc(37);
-    uuid_unparse_lower(binuuid,uuid);
-    printf("%s\n",buffer);
-    send(new_socket , uuid , strlen(uuid) , 0 ); 
-    printf("uuid message sent\n"); 
+    struct json_tokener *tokener = json_tokener_new(); 
+    map_t cache = hashmap_new();
+    while(1){
+        char buffer[1024];
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address,(socklen_t*)&addrlen))<0) 
+        { 
+            perror("accept"); 
+            exit(EXIT_FAILURE); 
+        }
+        read(new_socket, buffer, 1024);
+        printf("got buffer: %c\n",*buffer);
+        if(*buffer == '{'){
+            printf("inserting...\n");
+            buffer[strlen(buffer) - 1] = '\0';
+            struct json_object* object = json_tokener_parse_ex(tokener,buffer,strlen(buffer));
+            if(object == NULL){
+                printf("bad json");
+                fflush(stdout);
+                continue;
+            }
+            uuid_t binuuid;
+            uuid_generate_random(binuuid);
+            char * uuid = malloc(37);
+            uuid_unparse_lower(binuuid,uuid);
+            printf("%s\n",uuid);
+            char *value = strdup(buffer);
+            hashmap_put(cache,uuid,value);
+            send(new_socket , uuid , strlen(uuid) , 0 );
+            char * obj; 
+            hashmap_get(cache,uuid,(void**)&obj);
+            printf("%s\n",obj);
+        }
+        else{
+            uuid_t binuuid;
+            buffer[strlen(buffer) - 1] = '\0';
+            printf("retrieving...[len %d]%s => %d\n",strlen(buffer),buffer,uuid_parse(buffer,binuuid));
+
+            
+
+            if(uuid_parse(buffer,binuuid) ==-1){
+                printf("bad uuid");
+                fflush(stdout);
+                continue;
+            }
+            printf("good uuid");
+            char *uuid = malloc(37);
+            uuid_unparse_lower(binuuid,uuid);
+            char *obj;
+            hashmap_get(cache,uuid,(void**)&obj);
+            send(new_socket , obj , strlen(obj) , 0 );
+            fflush(stdout);
+        }
+    }
     json_tokener_free(tokener);
+    hashmap_free(cache);
 	return 0;
 }
