@@ -93,7 +93,7 @@ int main(int argc,char **argv){
         }
         else{
             uuid_t binuuid;
-            buffer[37] = '\0';
+            buffer[36] = '\0';
             printf("retrieving...[last %d][len %d]%s => %d\n",buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
 
             
