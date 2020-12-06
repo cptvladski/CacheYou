@@ -64,7 +64,7 @@ int main(int argc,char **argv){
             exit(EXIT_FAILURE); 
         }
         read(new_socket, buffer, 1024);
-        printf("got buffer: %c\n",*buffer);
+        printf("got buffer: %s\n",buffer);
         if(*buffer == '{'){
             printf("inserting...\n");
             buffer[strlen(buffer) - 1] = '\0';
