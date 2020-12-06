@@ -65,9 +65,9 @@ int main(int argc,char **argv){
         }
         int read_bytes = 0;
         int bytes = 0;
-        // while((bytes = read(new_socket+read_bytes, buffer, 1024))!= 0)
-        //     printf("%d\n",bytes);
-        //     read_bytes += bytes;
+        while((bytes = read(new_socket+read_bytes, buffer, 1024)) > 0)
+            printf("%d\n",bytes);
+            read_bytes += bytes;
         read(new_socket+read_bytes, buffer, 1024);
         printf("got buffer: %s\n",buffer);
         if(*buffer == '{'){
