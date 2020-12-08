@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=-Wall -luuid
+CFLAGS=-Wall -luuid -lpthread
 CFLAGS += $(shell pkg-config --cflags json-c)
-LDFLAGS = -luuid $(shell pkg-config --libs json-c)
+LDFLAGS = -lpthread -luuid $(shell pkg-config --libs json-c)
 OBJECTS=server.o hashmap.o
 .PHONY: all
 all: server
