@@ -59,14 +59,15 @@ void *putWorkerThread(void *arg){
     uuid_generate_random(binuuid);
     char * uuid = malloc(37);
     uuid_unparse_lower(binuuid,uuid);
-    printf("%s\n",uuid);
+    printf("[%s] generated %s\n",self(),uuid);
     char *value = strdup(buffer);
     hashmap_put(cache,uuid,value);
     send(new_socket , uuid , strlen(uuid) , 0 );
     char * obj;
     //validate put
     hashmap_get(cache,uuid,(void**)&obj);
-    printf("%s\n",obj);
+    printf("[%s] inserted %s\n",self(),obj);
+    fflush(stdout);
     return NULL;
 }
 
@@ -96,6 +97,7 @@ void *getWorkerThread(void *arg){
         return NULL;
     }
     send(new_socket , obj , strlen(obj) , 0 );
+    fflush(stdout);
     return NULL;
 }
 int main(int argc,char **argv){
