@@ -1,5 +1,3 @@
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -15,6 +13,7 @@
 #include <net/if.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <json.h>
 
 #include "worker.h"
 #define PORT 1234

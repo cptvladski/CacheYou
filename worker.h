@@ -3,6 +3,8 @@
 #include <string.h>
 #include "utils.h"
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #define BUFFSIZE 1024
 
