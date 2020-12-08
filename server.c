@@ -43,7 +43,7 @@ void *putWorkerThread(void *arg){
     if(object == NULL){
         printf("bad json");
         fflush(stdout);
-        continue;
+        return NULL;
     }
     uuid_t binuuid;
     uuid_generate_random(binuuid);
@@ -57,21 +57,22 @@ void *putWorkerThread(void *arg){
     //validate put
     hashmap_get(cache,uuid,(void**)&obj);
     printf("%s\n",obj);
+    return NULL;
 }
 
 //worker thread for retrieving entries from cache
-void *getWorkerThread(void *args){
+void *getWorkerThread(void *arg){
     args_t args = *(args_t*)arg;
     int new_socket = args.fd;
     char *buffer = strdup(args.buffer);
     uuid_t binuuid;
     buffer[36] = '\0';
-    printf("retrieving...[last %d][len %d]%s => %d\n",buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
+    printf("retrieving...[last %d][len %lu]%s => %d\n",buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
     //parse uuid
     if(uuid_parse(buffer,binuuid) ==-1){
         printf("bad uuid\n");
         fflush(stdout);
-        continue;
+        return NULL;
     }
     printf("good uuid\n");
     fflush(stdout);
@@ -82,9 +83,10 @@ void *getWorkerThread(void *args){
     if(obj == NULL){
         printf("no entry found\n");
         fflush(stdout);
-        continue;
+        return NULL;
     }
     send(new_socket , obj , strlen(obj) , 0 );
+    return NULL;
 }
 int main(int argc,char **argv){
     cache = hashmap_new();
@@ -134,9 +136,10 @@ int main(int argc,char **argv){
         int read_bytes = 0;
         int bytes = 0;
         //read from the socket
-        while((bytes = read(new_socket+read_bytes, buffer, 1024)) != 0)
+        while((bytes = read(new_socket+read_bytes, buffer, 1024)) != 0){
             printf("%d\n",bytes);
             read_bytes += bytes;
+        }
         printf("got buffer: %s\n",buffer);
         pthread_t tid;
         args_t arg;
