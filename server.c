@@ -31,11 +31,7 @@ typedef struct argP{
     int fd;
 }args_t;
 
-char *get_self() {
-    char *name = randomUUID();
-    name[5] = '\0';
-    return name;
-}
+
 
 char *randomUUID(){
     uuid_t binuuid;
@@ -43,6 +39,12 @@ char *randomUUID(){
     char * uuid = malloc(37);
     uuid_unparse_lower(binuuid,uuid);
     return uuid;
+}
+
+char *get_self() {
+    char *name = randomUUID();
+    name[5] = '\0';
+    return name;
 }
 
 //worker thread for adding entries to cache
