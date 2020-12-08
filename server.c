@@ -31,27 +31,32 @@ typedef struct argP{
     int fd;
 }args_t;
 
-char *self() {
-    pthread_t self = pthread_self();
-    char *name = malloc(100);
-    unsigned char *ptc = (unsigned char*)(void*)(&self);
-    for (size_t i=0; i<sizeof(self); i++) {
-        sprintf(name, "%02x", (unsigned)(ptc[i]));
-    }
+char *get_self() {
+    char *name = randomUUID();
+    name[5] = '\0';
     return name;
+}
+
+char *randomUUID(){
+    uuid_t binuuid;
+    uuid_generate_random(binuuid);
+    char * uuid = malloc(37);
+    uuid_unparse_lower(binuuid,uuid);
+    return uuid;
 }
 
 //worker thread for adding entries to cache
 void *putWorkerThread(void *arg){
+    char *self = get_self();
     args_t args = *(args_t*)arg;
     int new_socket = args.fd;
     char *buffer = strdup(args.buffer);
-    printf("[%s]inserting... %s\n",self(),buffer);
+    printf("[%s]inserting... %s\n",self,buffer);
     buffer[strlen(buffer) - 1] = '\0';
     //parse json
     struct json_object* object = json_tokener_parse_ex(tokener,buffer,strlen(buffer));
     if(object == NULL){
-        printf("[%s]bad json\n",self());
+        printf("[%s]bad json\n",self);
         fflush(stdout);
         return NULL;
     }
@@ -59,40 +64,41 @@ void *putWorkerThread(void *arg){
     uuid_generate_random(binuuid);
     char * uuid = malloc(37);
     uuid_unparse_lower(binuuid,uuid);
-    printf("[%s] generated %s\n",self(),uuid);
+    printf("[%s] generated %s\n",self,uuid);
     char *value = strdup(buffer);
     hashmap_put(cache,uuid,value);
     send(new_socket , uuid , strlen(uuid) , 0 );
     char * obj;
     //validate put
     hashmap_get(cache,uuid,(void**)&obj);
-    printf("[%s] inserted %s\n",self(),obj);
+    printf("[%s] inserted %s\n",self,obj);
     fflush(stdout);
     return NULL;
 }
 
 //worker thread for retrieving entries from cache
 void *getWorkerThread(void *arg){
+    char *self = get_self();
     args_t args = *(args_t*)arg;
     int new_socket = args.fd;
     char *buffer = strdup(args.buffer);
     uuid_t binuuid;
     buffer[36] = '\0';
-    printf("[%s]retrieving...[last %d][len %lu]%s => %d\n",self(),buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
+    printf("[%s]retrieving...[last %d][len %lu]%s => %d\n",self,buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
     //parse uuid
     if(uuid_parse(buffer,binuuid) ==-1){
-        printf("[%s]bad uuid\n",self());
+        printf("[%s]bad uuid\n",self);
         fflush(stdout);
         return NULL;
     }
-    printf("[%s]good uuid\n",self());
+    printf("[%s]good uuid\n",self);
     fflush(stdout);
     char *uuid = malloc(37);
     uuid_unparse_lower(binuuid,uuid);
     char *obj;
     hashmap_get(cache,uuid,(void**)&obj);
     if(obj == NULL){
-        printf("[%s]no entry found\n",self());
+        printf("[%s]no entry found\n",self);
         fflush(stdout);
         return NULL;
     }
@@ -139,7 +145,8 @@ int main(int argc,char **argv){
         exit(EXIT_FAILURE); 
     } 
     
-    
+    printf("[main] starting accept loop");
+    fflush(stdout);
     while(1){
         char buffer[1024];
         // accept new connection
