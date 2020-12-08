@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include "c_hashmap/hashmap.h"
 #define PORT 1234
+#define BUFFSIZE 1024
 
 map_t cache;
 struct json_tokener *tokener;
@@ -48,66 +49,124 @@ char *get_self() {
 }
 
 //worker thread for adding entries to cache
-void *putWorkerThread(void *arg){
+// void *putWorkerThread(void *arg){
+//     char *self = get_self();
+//     args_t args = *(args_t*)arg;
+//     int new_socket = args.fd;
+//     char *buffer = strdup(args.buffer);
+//     printf("[%s]inserting... %s\n",self,buffer);
+//     buffer[strlen(buffer) - 1] = '\0';
+//     //parse json
+//     struct json_object* object = json_tokener_parse_ex(tokener,buffer,strlen(buffer));
+//     if(object == NULL){
+//         printf("[%s]bad json\n",self);
+//         fflush(stdout);
+//         return NULL;
+//     }
+//     uuid_t binuuid;
+//     uuid_generate_random(binuuid);
+//     char * uuid = malloc(37);
+//     uuid_unparse_lower(binuuid,uuid);
+//     printf("[%s] generated %s\n",self,uuid);
+//     char *value = strdup(buffer);
+//     hashmap_put(cache,uuid,value);
+//     send(new_socket , uuid , strlen(uuid) , 0 );
+//     char * obj;
+//     //validate put
+//     hashmap_get(cache,uuid,(void**)&obj);
+//     printf("[%s] inserted %s\n",self,obj);
+//     fflush(stdout);
+//     return NULL;
+// }
+void *workerThread(void *arg){
+    char buffer[BUFFSIZE];
+    int new_socket = (*(args_t*)arg).fd;
     char *self = get_self();
-    args_t args = *(args_t*)arg;
-    int new_socket = args.fd;
-    char *buffer = strdup(args.buffer);
-    printf("[%s]inserting... %s\n",self,buffer);
-    buffer[strlen(buffer) - 1] = '\0';
-    //parse json
-    struct json_object* object = json_tokener_parse_ex(tokener,buffer,strlen(buffer));
-    if(object == NULL){
-        printf("[%s]bad json\n",self);
-        fflush(stdout);
-        return NULL;
+    int read_bytes = 0;
+    int bytes = 0;
+    while((bytes = read(new_socket+read_bytes, buffer, BUFFSIZE - read_bytes)) > 0){
+        printf("[main]read %d bytes from socket\n",bytes);
+        read_bytes += bytes;
     }
-    uuid_t binuuid;
-    uuid_generate_random(binuuid);
-    char * uuid = malloc(37);
-    uuid_unparse_lower(binuuid,uuid);
-    printf("[%s] generated %s\n",self,uuid);
-    char *value = strdup(buffer);
-    hashmap_put(cache,uuid,value);
-    send(new_socket , uuid , strlen(uuid) , 0 );
-    char * obj;
-    //validate put
-    hashmap_get(cache,uuid,(void**)&obj);
-    printf("[%s] inserted %s\n",self,obj);
+    printf("[%s]got buffer: %s\n",self,buffer);
+    //it's just json
+    if(*buffer == '{'){
+        printf("[%s]inserting... %s\n",self,buffer);
+        buffer[strlen(buffer) - 1] = '\0';
+        //parse json
+        struct json_object* object = json_tokener_parse_ex(tokener,buffer,strlen(buffer));
+        if(object == NULL){
+            printf("[%s]bad json\n",self);
+            fflush(stdout);
+            return NULL;
+        }
+        char * uuid = randomUUID();
+        printf("[%s] generated %s\n",self,uuid);
+        char *value = strdup(buffer);
+        hashmap_put(cache,uuid,value);
+        send(new_socket , uuid , strlen(uuid) , 0 );
+        char * obj;
+        //validate put
+        hashmap_get(cache,uuid,(void**)&obj);
+        printf("[%s] inserted %s\n",self,obj);
+    }
+    //it's just a uuid
+    else{
+        uuid_t binuuid;
+        buffer[36] = '\0';
+        printf("[%s]retrieving...[last %d][len %lu]%s => %d\n",self,buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
+        //parse uuid
+        if(uuid_parse(buffer,binuuid) ==-1){
+            printf("[%s]bad uuid\n",self);
+            fflush(stdout);
+            return NULL;
+        }
+        printf("[%s]good uuid\n",self);
+        fflush(stdout);
+        char *uuid = malloc(37);
+        uuid_unparse_lower(binuuid,uuid);
+        char *obj;
+        hashmap_get(cache,uuid,(void**)&obj);
+        if(obj == NULL){
+            printf("[%s]no entry found\n",self);
+            fflush(stdout);
+            return NULL;
+        }
+        send(new_socket , obj , strlen(obj) , 0 );
+    }
     fflush(stdout);
     return NULL;
 }
-
 //worker thread for retrieving entries from cache
-void *getWorkerThread(void *arg){
-    char *self = get_self();
-    args_t args = *(args_t*)arg;
-    int new_socket = args.fd;
-    char *buffer = strdup(args.buffer);
-    uuid_t binuuid;
-    buffer[36] = '\0';
-    printf("[%s]retrieving...[last %d][len %lu]%s => %d\n",self,buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
-    //parse uuid
-    if(uuid_parse(buffer,binuuid) ==-1){
-        printf("[%s]bad uuid\n",self);
-        fflush(stdout);
-        return NULL;
-    }
-    printf("[%s]good uuid\n",self);
-    fflush(stdout);
-    char *uuid = malloc(37);
-    uuid_unparse_lower(binuuid,uuid);
-    char *obj;
-    hashmap_get(cache,uuid,(void**)&obj);
-    if(obj == NULL){
-        printf("[%s]no entry found\n",self);
-        fflush(stdout);
-        return NULL;
-    }
-    send(new_socket , obj , strlen(obj) , 0 );
-    fflush(stdout);
-    return NULL;
-}
+// void *getWorkerThread(void *arg){
+//     char *self = get_self();
+//     args_t args = *(args_t*)arg;
+//     int new_socket = args.fd;
+//     char *buffer = strdup(args.buffer);
+//     uuid_t binuuid;
+//     buffer[36] = '\0';
+//     printf("[%s]retrieving...[last %d][len %lu]%s => %d\n",self,buffer[strlen(buffer)],strlen(buffer),buffer,uuid_parse(buffer,binuuid));
+//     //parse uuid
+//     if(uuid_parse(buffer,binuuid) ==-1){
+//         printf("[%s]bad uuid\n",self);
+//         fflush(stdout);
+//         return NULL;
+//     }
+//     printf("[%s]good uuid\n",self);
+//     fflush(stdout);
+//     char *uuid = malloc(37);
+//     uuid_unparse_lower(binuuid,uuid);
+//     char *obj;
+//     hashmap_get(cache,uuid,(void**)&obj);
+//     if(obj == NULL){
+//         printf("[%s]no entry found\n",self);
+//         fflush(stdout);
+//         return NULL;
+//     }
+//     send(new_socket , obj , strlen(obj) , 0 );
+//     fflush(stdout);
+//     return NULL;
+// }
 int main(int argc,char **argv){
     char hostname[100];
     gethostname(hostname,100);
@@ -150,34 +209,37 @@ int main(int argc,char **argv){
     printf("[main] starting accept loop");
     fflush(stdout);
     while(1){
-        char buffer[1024];
         // accept new connection
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address,(socklen_t*)&addrlen))<0) 
         { 
             perror("accept"); 
             exit(EXIT_FAILURE); 
         }
-        int read_bytes = 0;
-        int bytes = 0;
-        //read from the socket
-        while((bytes = read(new_socket+read_bytes, buffer, 1024)) > 0){
-            printf("%d\n",bytes);
-            read_bytes += bytes;
-        }
-        printf("[main]got buffer: %s\n",buffer);
         pthread_t tid;
         args_t arg;
         arg.fd = new_socket;
-        arg.buffer = buffer;
-        //it's just json
-        if(*buffer == '{'){
-            pthread_create(&tid,NULL,putWorkerThread,(void*) &arg);
-        }
-        //it's just a uuid
-        else{
-            pthread_create(&tid,NULL,getWorkerThread,(void*) &arg);  
-        }
-        fflush(stdout);
+        pthread_create(&tid,NULL,workerThread,(void*) &arg);
+        // int read_bytes = 0;
+        // int bytes = 0;
+        // //read from the socket
+        // while((bytes = read(new_socket+read_bytes, buffer, 1024)) > 0){
+        //     printf("[main]read %d bytes from socket\n",bytes);
+        //     read_bytes += bytes;
+        // }
+        // printf("[main]got buffer: %s\n",buffer);
+        // pthread_t tid;
+        // args_t arg;
+        // arg.fd = new_socket;
+        // arg.buffer = buffer;
+        // //it's just json
+        // if(*buffer == '{'){
+        //     pthread_create(&tid,NULL,putWorkerThread,(void*) &arg);
+        // }
+        // //it's just a uuid
+        // else{
+        //     pthread_create(&tid,NULL,getWorkerThread,(void*) &arg);  
+        // }
+        // fflush(stdout);
     }
     json_tokener_free(tokener);
     hashmap_free(cache);
