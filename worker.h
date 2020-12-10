@@ -1,4 +1,5 @@
 #include "c_hashmap/hashmap.h"
+#include "trash_compactor.h"
 #include <stdio.h>
 #include <string.h>
 #include "utils.h"

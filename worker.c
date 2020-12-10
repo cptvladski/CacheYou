@@ -5,9 +5,12 @@ extern map_t cache;
 extern struct json_tokener *tokener;
 
 void *workerThread(void *arg){
+    lifetime_stack_t *trash = create_stack(100);
     char buffer[BUFFSIZE];
     int new_socket = (*(args_t*)arg).fd;
     char *self = get_self();
+    res_add(trash,self,free);
+    res_add(trash,&new_socket,fd_wrapper);
     int read_bytes = 0;
     int bytes = 0;
     while((bytes = read(new_socket+read_bytes, buffer, BUFFSIZE - read_bytes)) > 0){
@@ -23,8 +26,7 @@ void *workerThread(void *arg){
         struct json_object* object = json_tokener_parse_ex(tokener,buffer,strlen(buffer));
         if(object == NULL){
             printf("[%s]bad json\n",self);
-            fflush(stdout);
-            return NULL;
+            goto end;
         }
         char * uuid = randomUUID();
         printf("[%s] generated %s\n",self,uuid);
@@ -44,8 +46,7 @@ void *workerThread(void *arg){
         //parse uuid
         if(uuid_parse(buffer,binuuid) ==-1){
             printf("[%s]bad uuid\n",self);
-            fflush(stdout);
-            return NULL;
+            goto end;
         }
         printf("[%s]good uuid\n",self);
         fflush(stdout);
@@ -55,11 +56,12 @@ void *workerThread(void *arg){
         hashmap_get(cache,uuid,(void**)&obj);
         if(obj == NULL){
             printf("[%s]no entry found\n",self);
-            fflush(stdout);
-            return NULL;
+            goto end;
         }
         send(new_socket , obj , strlen(obj) , 0 );
     }
+end:
+    lifetime_destroy(trash);
     fflush(stdout);
     return NULL;
 }

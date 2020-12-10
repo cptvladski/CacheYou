@@ -14,14 +14,21 @@
 #include <stdarg.h>
 #include <pthread.h>
 #include <json.h>
-
 #include "worker.h"
 #define PORT 1234
 
 map_t cache;
 struct json_tokener *tokener;
+lifetime_stack_t *trash;
+void sigint_handler(int signum){
+    printf("[main] freeing all resources and exiting...\n");
+    lifetime_destroy(trash);
+    exit(0);
+}
 
 int main(int argc,char **argv){
+    signal(SIGINT,sigint_handler);
+    trash = create_stack(1000);
     char hostname[100];
     gethostname(hostname,100);
     printf("[main]%s cacheyou container starting...\n",hostname);
@@ -72,6 +79,7 @@ int main(int argc,char **argv){
         args_t arg;
         arg.fd = new_socket;
         pthread_create(&tid,NULL,workerThread,(void*) &arg);
+        res_add(trash,&tid,join_wrapper);
     }
     json_tokener_free(tokener);
     hashmap_free(cache);
