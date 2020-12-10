@@ -34,6 +34,8 @@ int main(int argc,char **argv){
     printf("[main]%s cacheyou container starting...\n",hostname);
     cache = hashmap_new();
     tokener = json_tokener_new(); 
+    res_add(trash,cache,hashmap_free);
+    res_add(trash,tokener,(void (*)(void *))json_tokener_free);
     int server_fd;
     struct sockaddr_in address;
     int opt = 1;
@@ -81,7 +83,5 @@ int main(int argc,char **argv){
         pthread_create(&tid,NULL,workerThread,(void*) &arg);
         res_add(trash,&tid,join_wrapper);
     }
-    json_tokener_free(tokener);
-    hashmap_free(cache);
     return 0;
 }
