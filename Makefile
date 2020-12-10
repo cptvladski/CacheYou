@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -luuid -lpthread
+CFLAGS=-Wall -luuid -lpthread -DDEBUG
 CFLAGS += $(shell pkg-config --cflags json-c)
 LDFLAGS = -lpthread -luuid $(shell pkg-config --libs json-c)
 OBJECTS=server.o hashmap.o utils.o worker.o trash_compactor.o

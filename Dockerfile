@@ -11,4 +11,4 @@ RUN git clone https://github.com/cptvladski/cacheYou.git
 RUN cd /cacheYou && git clone https://github.com/petewarden/c_hashmap.git
 RUN cd /cacheYou && make
 RUN ldconfig
-CMD [/cacheYou/server]
+CMD ["/cacheYou/server"]
