@@ -68,7 +68,7 @@ int main(int argc,char **argv){
         exit(EXIT_FAILURE); 
     } 
     
-    printf("[main] starting accept loop");
+    printf("[main] starting accept loop\n");
     fflush(stdout);
     while(1){
         // accept new connection
